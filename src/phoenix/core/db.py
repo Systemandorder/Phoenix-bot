@@ -20,9 +20,9 @@ Params = Sequence[Any] | dict[str, Any]
 class Database:
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
+        if self.path != ":memory:":
+            Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
-        self._all: list[sqlite3.Connection] = []
-        self._lock = threading.Lock()
 
     def _conn(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
