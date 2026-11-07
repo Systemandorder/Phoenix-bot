@@ -1,0 +1,13 @@
+.env
+*.db
+*.db-wal
+*.db-shm
+*.session
+*.session-journal
+*.pkl
+tasks/
+voices/
+backups/
+logs/
+__pycache__/
+.venv/
