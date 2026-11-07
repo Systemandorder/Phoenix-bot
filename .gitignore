@@ -28,3 +28,4 @@ dist/
 .idea/
 .vscode/
 .DS_Store
+legacy/
