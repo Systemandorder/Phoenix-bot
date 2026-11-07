@@ -1,13 +1,30 @@
+# secrets
 .env
+.env.*
+!.env.example
+*.session
+*.session-journal
+
+# data (runtime, never commit)
 *.db
 *.db-wal
 *.db-shm
-*.session
-*.session-journal
 *.pkl
-tasks/
-voices/
-backups/
-logs/
+/tasks/
+/voices/
+/backups/
+/logs/
+*.log
+
+# python
 __pycache__/
+*.egg-info/
 .venv/
+.pytest_cache/
+build/
+dist/
+
+# editors / os
+.idea/
+.vscode/
+.DS_Store
