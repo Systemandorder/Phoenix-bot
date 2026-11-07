@@ -1,6 +1,6 @@
-"""Dry-run: apply migrations to a COPY of the legacy DB and verify no data is lost.
+"""Пробний запуск: міграції на КОПІЇ старої БД + перевірка, що дані не втрачено.
 
-Usage: python scripts/check_db.py /path/to/botsort.db
+Використання: python scripts/check_db.py шлях/до/botsort.db
 """
 from __future__ import annotations
 
@@ -32,11 +32,15 @@ def columns(path: Path, table: str) -> list[str]:
 
 
 def main(src: str) -> int:
+    if not Path(src).is_file():
+        print(f"ПОМИЛКА: файл не знайдено: {Path(src).resolve()}")
+        return 2
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "copy.db"
-        source = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+        # as_uri() правильно екранує шлях (на Windows "legacy\x.db" інакше ламає URI)
+        source = sqlite3.connect(Path(src).resolve().as_uri() + "?mode=ro", uri=True)
         target = sqlite3.connect(work)
-        source.backup(target)  # consistent copy, includes WAL content
+        source.backup(target)  # узгоджена копія, включно з вмістом WAL
         source.close()
         target.close()
 
