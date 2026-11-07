@@ -1,8 +1,8 @@
-"""Versioned migrations (PRAGMA user_version).
+"""Версійні міграції БД (PRAGMA user_version).
 
-Rules: ADDITIVE ONLY (create/add/index), never drop or rewrite data.
-v1 is the legacy-compatible baseline: safe to run on the live botsort.db.
-A backup is taken automatically before any pending migration.
+Правила: ТІЛЬКИ ДОДАВАННЯ (створити/додати стовпець/індекс), ніколи не видаляти й не переписувати дані.
+v1 — базова схема, сумісна зі старим ботом: безпечно запускати на живому botsort.db.
+Перед будь-якою міграцією автоматично робиться резервна копія.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
 
 
 def _add_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
-    # table/column/definition are code constants, never user input.
+    # table/column/definition — константи з коду, ніколи не ввід користувача.
     if not _has_column(conn, table, column):
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
@@ -43,6 +43,9 @@ def _m001_baseline(conn: sqlite3.Connection) -> None:
 
     conn.execute("""CREATE TABLE IF NOT EXISTS file_permissions (
         file_uid TEXT PRIMARY KEY, file_path TEXT, group_name TEXT, can_view INTEGER DEFAULT 1)""")
+    # якщо таблиця вже існувала зі старою схемою — доганяємо відсутні стовпці
+    for col, definition in (("file_path", "TEXT"), ("group_name", "TEXT"), ("can_view", "INTEGER DEFAULT 1")):
+        _add_column(conn, "file_permissions", col, definition)
 
     conn.execute("CREATE TABLE IF NOT EXISTS server_paths (uid TEXT PRIMARY KEY, full_path TEXT)")
     _add_column(conn, "server_paths", "click_count", "INTEGER DEFAULT 0")
@@ -62,7 +65,14 @@ MIGRATIONS: list[tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
 
 
 def migrate(db: Database, backup_dir: Path | None = None) -> int:
+    """Застосувати всі відсутні міграції. Повертає поточну версію схеми."""
     current = db.query_one("PRAGMA user_version")[0]
+    latest = MIGRATIONS[-1][0]
+    if current > latest:
+        # БД створена новішою версією коду: не чіпаємо, щоб нічого не зламати
+        raise RuntimeError(
+            f"Версія БД ({current}) новіша за версію коду ({latest}). Онови код бота."
+        )
     pending = [m for m in MIGRATIONS if m[0] > current]
     if not pending:
         return current
@@ -73,11 +83,14 @@ def migrate(db: Database, backup_dir: Path | None = None) -> int:
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         dest = backup_dir / f"botsort-v{current}-{stamp}.db"
         db.backup_to(dest)
-        log.info("DB backup before migration: %s", dest)
+        log.info("Резервна копія БД перед міграцією: %s", dest)
 
     for version, name, fn in pending:
         with db.tx() as conn:
+            # перевірка ВСЕРЕДИНІ транзакції: якщо інший процес уже встиг — пропускаємо
+            if conn.execute("PRAGMA user_version").fetchone()[0] >= version:
+                continue
             fn(conn)
             conn.execute(f"PRAGMA user_version = {int(version)}")
-        log.info("Applied migration v%s (%s)", version, name)
+        log.info("Застосовано міграцію v%s (%s)", version, name)
     return pending[-1][0]
