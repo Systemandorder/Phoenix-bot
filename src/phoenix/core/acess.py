@@ -92,9 +92,10 @@ class AccessService:
         return await asyncio.to_thread(self.can_access_file, *args, **kwargs)
 
     def _can_access(self, file_path: str, group: str, user_id: int, respect_hide: bool) -> bool:
-        parts = PurePath(file_path).parts
+           # Нормалізуємо слеші: "a\..\b" на Linux інакше не розбивається на частини
+        parts = PurePath(file_path.replace("\\", "/")).parts
         if ".." in parts:
-            return False  # path traversal
+            return False  # захист від path traversal
         uid = path_uid(file_path)
         is_safe_dir = SAFE_DIR in parts
 
