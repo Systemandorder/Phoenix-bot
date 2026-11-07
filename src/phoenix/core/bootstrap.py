@@ -1,4 +1,4 @@
-"""Composition root: builds all core services once, with explicit dependencies."""
+"""Точка збирання: створює всі сервіси ядра один раз, з явними залежностями."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,6 +21,10 @@ class Core:
     audit: AuditLog
     access: AccessService
     profiles: ProfileService
+
+    def close(self) -> None:
+        """Коректно закрити БД (викликати при вимкненні бота)."""
+        self.db.close()
 
 
 def build_core(settings: Settings) -> Core:
