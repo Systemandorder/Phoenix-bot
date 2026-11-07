@@ -7,6 +7,7 @@ v1 — базова схема, сумісна зі старим ботом: б�
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -58,9 +59,58 @@ def _m002_indexes(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_user_ts ON audit_logs (user_id, timestamp)")
 
 
+# ---------- v3: усі таблиці старого бота (точна схема з реальної БД) ----------
+_SCHEMA_FILE = Path(__file__).with_name("schema_legacy.sql")
+_CREATE_RE = re.compile(r"^\s*CREATE\s+(UNIQUE\s+)?(VIRTUAL\s+)?(TABLE|INDEX)\s+(?!IF\s+NOT\s+EXISTS)", re.I)
+
+
+def _split_statements(text: str) -> list[str]:
+    """Розбити SQL-файл на окремі команди (executescript не годиться: він ламає транзакцію)."""
+    out, buf = [], ""
+    for line in text.splitlines(keepends=True):
+        buf += line
+        if sqlite3.complete_statement(buf):
+            if buf.strip():
+                out.append(buf.strip())
+            buf = ""
+    return out
+
+
+def _idempotent(sql: str) -> str:
+    """CREATE TABLE/INDEX -> CREATE ... IF NOT EXISTS (на живій БД нічого не змінюється)."""
+    return _CREATE_RE.sub(
+        lambda m: f"CREATE {m.group(1) or ''}{m.group(2) or ''}{m.group(3).upper()} IF NOT EXISTS ", sql, count=1)
+
+
+def _m003_legacy_inventory(conn: sqlite3.Connection) -> None:
+    if not _SCHEMA_FILE.is_file():
+        raise RuntimeError(f"Немає файлу схеми: {_SCHEMA_FILE}")
+    for stmt in _split_statements(_SCHEMA_FILE.read_text(encoding="utf-8")):
+        try:
+            conn.execute(_idempotent(stmt))
+        except sqlite3.OperationalError as exc:
+            if "fts5" in str(exc).lower():  # SQLite без FTS5: пошук недоступний, решта працює
+                log.warning("FTS5 недоступний, пропущено: %s", stmt[:60].replace("\n", " "))
+                continue
+            raise
+
+
+# ---------- v4: індекси під реальні запити бота ----------
+def _m004_perf_indexes(conn: sqlite3.Connection) -> None:
+    for sql in (
+        "CREATE INDEX IF NOT EXISTS idx_org_parent ON org_data (parent_id)",
+        "CREATE INDEX IF NOT EXISTS idx_org_group_cat ON org_data (group_name, category)",
+        "CREATE INDEX IF NOT EXISTS idx_deadlines_group ON calendar_deadlines (group_name)",
+        "CREATE INDEX IF NOT EXISTS idx_dynsched_lookup ON dynamic_schedule (sch_id, week_type, day_code)",
+    ):
+        conn.execute(sql)
+
+
 MIGRATIONS: list[tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_legacy_compatible", _m001_baseline),
     (2, "audit_indexes", _m002_indexes),
+    (3, "legacy_inventory", _m003_legacy_inventory),
+    (4, "perf_indexes", _m004_perf_indexes),
 ]
 
 
