@@ -1,4 +1,4 @@
-"""Audit trail (who did what). Never raises into handlers."""
+"""Журнал дій (хто і що зробив). Помилка запису ніколи не ламає роботу бота."""
 from __future__ import annotations
 
 import asyncio
@@ -18,14 +18,16 @@ class AuditLog:
         self._tz = ZoneInfo(timezone)
 
     def log(self, user_id: int, action: str, target: str) -> None:
-        ts = datetime.now(self._tz).strftime("%Y-%m-%d %H:%M:%S")  # same format as legacy rows
+        """Записує дію. Формат часу такий самий, як у старих записах."""
+        ts = datetime.now(self._tz).strftime("%Y-%m-%d %H:%M:%S")
         try:
             self._db.execute(
                 "INSERT INTO audit_logs (user_id, timestamp, action, target) VALUES (?, ?, ?, ?)",
                 (user_id, ts, action, target),
             )
         except sqlite3.Error:
-            log.exception("Audit write failed (user=%s action=%s)", user_id, action)
+            log.exception("Не вдалося записати в журнал дій (користувач %s, дія %s)", user_id, action)
 
     async def alog(self, user_id: int, action: str, target: str) -> None:
+        """Те саме, але не блокує бота."""
         await asyncio.to_thread(self.log, user_id, action, target)
