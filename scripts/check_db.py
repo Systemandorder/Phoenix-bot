@@ -60,6 +60,22 @@ def main(src: str) -> int:
         if bad:
             print("DATA LOSS DETECTED:", bad)
             return 1
+
+        # Зовнішні ключі: нове ядро вмикає їх, старий бот — ні. Сироти в даних = майбутні помилки.
+        chk = sqlite3.connect(work)
+        orphans = chk.execute("PRAGMA foreign_key_check").fetchall()
+        chk.close()
+        print(f"foreign_key_check: {len(orphans)} рядків-сиріт" + (f" {orphans[:5]}" if orphans else ""))
+
+        # Чи відтворює нова БД «з нуля» ті самі таблиці, що й жива?
+        fresh_path = Path(tmp) / "fresh.db"
+        fresh = Database(fresh_path)
+        migrate(fresh, backup_dir=None)
+        fresh.close()
+        missing = sorted(set(table_counts(work)) - set(table_counts(fresh_path)))
+        print("відсутні в новій БД з нуля:", missing or "немає (схема повна)")
+        if missing:
+            return 1
         print("OK: row counts identical in all pre-existing tables")
         return 0
 
@@ -67,4 +83,5 @@ def main(src: str) -> int:
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit("usage: python scripts/check_db.py /path/to/botsort.db")
+    sys.exit(main(sys.argv[1]))
     sys.exit(main(sys.argv[1]))
