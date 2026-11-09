@@ -116,6 +116,7 @@ class Settings:
     medic_api_url: str = ""
     zoom_api_url: str = ""
     worker_url: str = ""
+    legacy_files_root: str = ""   # шлях до tasks на сервері старого бота (для сумісності прав)
 
     @property
     def files_dir(self) -> Path:
@@ -151,6 +152,7 @@ class Settings:
             medic_api_url=_str("MEDIC_API_URL"),
             zoom_api_url=_str("ZOOM_API_URL"),
             worker_url=_str("WORKER_URL"),
+            legacy_files_root=_str("LEGACY_FILES_ROOT"),
         )
 
 
