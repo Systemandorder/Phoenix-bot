@@ -129,7 +129,7 @@ class AppTests(unittest.TestCase):
                 app = build_application(core)
                 handlers = [h for group in app.handlers.values() for h in group]
                 names = {c for h in handlers if isinstance(h, CommandHandler) for c in h.commands}
-                self.assertEqual(names, {"start", "ping", "restart"})
+                self.assertEqual(names, {"start", "ping", "restart", "admin"})
                 self.assertEqual(sum(isinstance(h, CallbackQueryHandler) for h in handlers), 1)
                 self.assertEqual(sum(isinstance(h, MessageHandler) for h in handlers), 1)
                 self.assertIs(app.bot_data["core"], core)

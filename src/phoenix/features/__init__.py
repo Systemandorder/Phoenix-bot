@@ -5,9 +5,10 @@ from telegram.ext import Application
 
 from ..tg.router import CallbackRouter
 from ..tg.text_router import TextRouter
-from . import registration, start
+from . import admin, registration, start
 
 
 def register_all(app: Application, router: CallbackRouter, texts: TextRouter) -> None:
     registration.register(app, router, texts)
     start.register(app, router, texts)
+    admin.register(app, router, texts)

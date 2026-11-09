@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from ..config import Settings
 from .access import AccessService, ProfileService
+from .admin import AdminService
 from .audit import AuditLog
 from .crypto import KeyVault
 from .db import Database
@@ -23,6 +24,7 @@ class Core:
     access: AccessService
     profiles: ProfileService
     users: UserService
+    admin: AdminService
 
     def close(self) -> None:
         """Коректно закрити БД (викликати при вимкненні бота)."""
@@ -34,14 +36,17 @@ def build_core(settings: Settings) -> Core:
     migrate(db, backup_dir=settings.data_dir / "backups")
     kv = KV(db)
     profiles = ProfileService(db, settings.vip_ids)
+    audit = AuditLog(db, settings.timezone)
+    access = AccessService(db, admin_id=settings.admin_id, vip_ids=settings.vip_ids,
+                           home_group=settings.home_group)
     return Core(
         settings=settings,
         db=db,
         kv=kv,
         vault=KeyVault(kv, settings.master_key, wrap=settings.wrap_user_keys),
-        audit=AuditLog(db, settings.timezone),
-        access=AccessService(db, admin_id=settings.admin_id, vip_ids=settings.vip_ids,
-                             home_group=settings.home_group),
+        audit=audit,
+        access=access,
         profiles=profiles,
         users=UserService(db, profiles),
+        admin=AdminService(db, access, profiles, audit, admin_id=settings.admin_id),
     )
