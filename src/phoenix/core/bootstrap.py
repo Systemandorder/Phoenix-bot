@@ -40,7 +40,6 @@ def build_core(settings: Settings) -> Core:
     migrate(db, backup_dir=settings.data_dir / "backups")
     kv = KV(db)
     profiles = ProfileService(db, settings.vip_ids)
-    calendar=CalendarService(db, kv, settings.timezone),
     audit = AuditLog(db, settings.timezone)
     access = AccessService(db, admin_id=settings.admin_id, vip_ids=settings.vip_ids,
                            home_group=settings.home_group)
@@ -55,4 +54,5 @@ def build_core(settings: Settings) -> Core:
         users=UserService(db, profiles),
         admin=AdminService(db, access, profiles, audit, admin_id=settings.admin_id),
         menu=MenuService(kv),
+        calendar=CalendarService(db, kv, settings.timezone),
     )
