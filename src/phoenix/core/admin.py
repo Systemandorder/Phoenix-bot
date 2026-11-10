@@ -78,7 +78,10 @@ def _row(r) -> UserRow:
     return UserRow(r["user_id"], r["first_name"], r["last_name"], r["username"], r["group_name"],
                    r["is_vip"] or 0, r["has_paid"] or 0, r["subscription_end"], r["free_clicks"] or 0)
 
-
+_ASYNC_ALLOWED = frozenset({
+    "get_user", "counts", "list_groups", "list_users", "curators", "search", "tier_of", "recent_log",
+    "promote", "demote", "grant_member", "expire", "grant_group", "set_group", "set_clicks",
+})
 class AdminService:
     def __init__(self, db: Database, access: AccessService, profiles: ProfileService, audit: AuditLog,
                  *, admin_id: int, now: Callable[[], datetime] = datetime.now) -> None:
@@ -257,4 +260,8 @@ class AdminService:
 
     # ---- async-версії: база не блокує бота ----
     async def acall(self, name: str, *args):
+        """Виконує дію в окремому потоці. Дозволені лише імена з білого списку, бо назва може
+        прийти з кнопки, і за нею не можна запускати будь-який внутрішній метод."""
+        if name not in _ASYNC_ALLOWED:
+            raise AdminError("⚠️ Невідома дія.")
         return await asyncio.to_thread(getattr(self, name), *args)
