@@ -13,6 +13,7 @@ from .kv import KV
 from .menu import MenuService
 from .migrations import migrate
 from .users import UserService
+from .calendar import CalendarService   
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ class Core:
     users: UserService
     admin: AdminService
     menu: MenuService
+    calendar: CalendarService  
 
     def close(self) -> None:
         """Коректно закрити БД (викликати при вимкненні бота)."""
@@ -38,6 +40,7 @@ def build_core(settings: Settings) -> Core:
     migrate(db, backup_dir=settings.data_dir / "backups")
     kv = KV(db)
     profiles = ProfileService(db, settings.vip_ids)
+    calendar=CalendarService(db, kv, settings.timezone),
     audit = AuditLog(db, settings.timezone)
     access = AccessService(db, admin_id=settings.admin_id, vip_ids=settings.vip_ids,
                            home_group=settings.home_group)
