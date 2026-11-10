@@ -252,7 +252,7 @@ class AccessTests(TmpCase):
         self.assertFalse(self.acl.can_access_file("tasks\\..\\x", None, 1))
 
     def test_error_means_deny(self):
-        with mock.patch.object(self.acl, "_can_access", side_effect=RuntimeError("збій")):
+        with mock.patch.object(self.acl, "_decide", side_effect=RuntimeError("збій")):
             self.assertFalse(self.acl.can_access_file("tasks/x.pdf", "G", 9))
 
 
