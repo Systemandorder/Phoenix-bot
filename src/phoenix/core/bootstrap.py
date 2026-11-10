@@ -10,6 +10,7 @@ from .audit import AuditLog
 from .crypto import KeyVault
 from .db import Database
 from .kv import KV
+from .menu import MenuService
 from .migrations import migrate
 from .users import UserService
 
@@ -25,6 +26,7 @@ class Core:
     profiles: ProfileService
     users: UserService
     admin: AdminService
+    menu: MenuService
 
     def close(self) -> None:
         """Коректно закрити БД (викликати при вимкненні бота)."""
@@ -49,4 +51,5 @@ def build_core(settings: Settings) -> Core:
         profiles=profiles,
         users=UserService(db, profiles),
         admin=AdminService(db, access, profiles, audit, admin_id=settings.admin_id),
+        menu=MenuService(kv),
     )
